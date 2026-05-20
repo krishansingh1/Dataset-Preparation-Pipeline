@@ -115,3 +115,34 @@ df['satisfaction_score'] = df['satisfaction_score'].fillna(df['satisfaction_scor
 # For payment_method, add a new category "Unknown" — sometimes missingness is informative!
 df['payment_method'] = df['payment_method'].cat.add_categories('Unknown').fillna('Unknown')
 print(f"Missing values remaining: {df.isnull().sum().sum()}")
+
+# STEP 4 is to perform FEATURE ENGINEERING to create new features that can help the model learn better patterns and improve performance.
+# Create new features that capture useful patterns.
+# This is often where the BIGGEST model improvements come from.
+print("\n" + "=" * 65)
+print("STEP 4: FEATURE ENGINEERING")
+print("=" * 65)
+
+# Tenure groups (turn continuous into bins — sometimes models learn better)
+df['tenure_group'] = pd.cut(
+    df['tenure_months'],
+    bins=[-1, 6, 12, 24, 48, 200],
+    labels=['0-6mo', '6-12mo', '1-2yr', '2-4yr', '4yr+']
+)
+
+# Average charge per month of tenure (rate of spending)
+df['avg_charge_per_tenure'] = (
+    df['total_charges'] / df['tenure_months'].replace(0, 1)
+).round(2)
+
+# Time-based features from signup_date
+df['signup_year'] = df['signup_date'].dt.year.astype('int16')
+df['signup_month'] = df['signup_date'].dt.month.astype('int8')
+df['account_age_days'] = (pd.Timestamp('2025-01-01') - df['signup_date']).dt.days.astype('int16')
+
+# Behavior flag
+df['high_support_user'] = (df['num_support_calls'] > 4).astype('int8')
+
+print(f"\nNew columns added. Total columns now: {len(df.columns)}")
+print(f"Sample of new features:")
+print(df[['tenure_group', 'avg_charge_per_tenure', 'signup_year', 'high_support_user']].head())
