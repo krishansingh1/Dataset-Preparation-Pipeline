@@ -173,3 +173,36 @@ print(f"Validation: {len(X_val):,} rows ({len(X_val)/len(X):.0%})")
 print(f"Test:       {len(X_test):,} rows ({len(X_test)/len(X):.0%})")
 print(f"\nChurn rate in each set (should be ~equal):")
 print(f"  Train: {y_train.mean():.3f}  |  Val: {y_val.mean():.3f}  |  Test: {y_test.mean():.3f}")
+
+
+# STEP 6 is to perform ENCODING + SCALING to convert categorical variables into numeric format and standardize numerical features for better model performance.
+print("\n" + "=" * 65)
+print("STEP 6: ENCODING + SCALING via Pipeline")
+print("=" * 65)
+
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+
+numerical_cols = X_train.select_dtypes(include=['int8', 'int16', 'int32', 'float32']).columns.tolist()
+categorical_cols = X_train.select_dtypes(include=['category', 'object']).columns.tolist()
+
+print(f"\nNumerical features ({len(numerical_cols)}): {numerical_cols}")
+print(f"Categorical features ({len(categorical_cols)}): {categorical_cols}")
+
+# Build preprocessing pipeline
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', StandardScaler(), numerical_cols),
+        ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), categorical_cols),
+    ]
+)
+
+# Fit on training data ONLY
+X_train_processed = preprocessor.fit_transform(X_train)
+# Apply to val and test (no fitting!)
+X_val_processed = preprocessor.transform(X_val)
+X_test_processed = preprocessor.transform(X_test)
+
+print(f"\nFinal feature shape after encoding: {X_train_processed.shape}")
+print(f"(Went from {X_train.shape[1]} columns to {X_train_processed.shape[1]} after one-hot)")
