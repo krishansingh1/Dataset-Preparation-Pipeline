@@ -206,3 +206,52 @@ X_test_processed = preprocessor.transform(X_test)
 
 print(f"\nFinal feature shape after encoding: {X_train_processed.shape}")
 print(f"(Went from {X_train.shape[1]} columns to {X_train_processed.shape[1]} after one-hot)")
+
+# STEP 7 is to save the file efficiently (Parquet vs CSV) and also save the preprocessor so you can apply the same transformations to new data later.
+
+print("\n" + "=" * 65)
+print("STEP 7: SAVE EFFICIENTLY (CSV vs Parquet)")
+print("=" * 65)
+
+# Save the processed splits as DataFrames so we keep column names
+feature_names = preprocessor.get_feature_names_out()
+train_df = pd.DataFrame(X_train_processed, columns=feature_names)
+train_df['churned'] = y_train.values
+
+# Save as CSV
+t0 = time.time()
+train_df.to_csv(OUTPUT_DIR / 'train.csv', index=False)
+csv_time = time.time() - t0
+csv_size = (OUTPUT_DIR / 'train.csv').stat().st_size / 1_000_000
+
+# Save as Parquet
+t0 = time.time()
+train_df.to_parquet(OUTPUT_DIR / 'train.parquet', engine='pyarrow', compression='snappy')
+parquet_time = time.time() - t0
+parquet_size = (OUTPUT_DIR / 'train.parquet').stat().st_size / 1_000_000
+
+print(f"\n              CSV          Parquet      Improvement")
+print(f"Write time:   {csv_time:.3f}s      {parquet_time:.3f}s       {csv_time/parquet_time:.1f}x faster")
+print(f"File size:    {csv_size:.1f} MB     {parquet_size:.1f} MB      {csv_size/parquet_size:.1f}x smaller")
+
+# Read speed test
+t0 = time.time()
+_ = pd.read_csv(OUTPUT_DIR / 'train.csv')
+csv_read = time.time() - t0
+t0 = time.time()
+_ = pd.read_parquet(OUTPUT_DIR / 'train.parquet')
+parquet_read = time.time() - t0
+print(f"Read time:    {csv_read:.3f}s      {parquet_read:.3f}s       {csv_read/parquet_read:.1f}x faster")
+
+# Save val and test too
+pd.DataFrame(X_val_processed, columns=feature_names).assign(churned=y_val.values).to_parquet(
+    OUTPUT_DIR / 'val.parquet'
+)
+pd.DataFrame(X_test_processed, columns=feature_names).assign(churned=y_test.values).to_parquet(
+    OUTPUT_DIR / 'test.parquet'
+)
+
+# Save the preprocessor too — so you can apply the same transformations to new data later
+import joblib
+joblib.dump(preprocessor, OUTPUT_DIR / 'preprocessor.pkl')
+print(f"\nSaved: train.parquet, val.parquet, test.parquet, preprocessor.pkl")
