@@ -73,3 +73,45 @@ print(df['churned'].value_counts(normalize=True).round(3))
 
 print(f"\nUnique values in 'contract_type':")
 print(df['contract_type'].value_counts())
+
+# STEP 3 is CLEANING the data to fix issues found during EDA and prepare it for analysis/modeling.
+# Order matters: dedupe → fix types → handle missing → handle outliers
+print("\n" + "=" * 65)
+print("STEP 3: CLEANING")
+print("=" * 65)
+
+initial_rows = len(df)
+
+# Remove duplicates
+df = df.drop_duplicates().reset_index(drop=True)
+print(f"\nRemoved {initial_rows - len(df)} duplicates")
+
+# Standardize string formatting
+# Categories need to be converted back to string to modify, then back to category
+df['contract_type'] = df['contract_type'].astype(str).str.title().astype('category')
+print(f"Standardized contract_type. New unique values: {df['contract_type'].unique().tolist()}")
+
+# Handle outliers in monthly_charges
+# Use IQR method: anything beyond 1.5×IQR from quartiles is an outlier
+Q1 = df['monthly_charges'].quantile(0.25)
+Q3 = df['monthly_charges'].quantile(0.75)
+IQR = Q3 - Q1
+upper_bound = Q3 + 1.5 * IQR
+n_outliers = (df['monthly_charges'] > upper_bound).sum()
+print(f"\nOutliers in monthly_charges (>{upper_bound:.2f}): {n_outliers}")
+
+# Strategy: CAP them rather than delete (keeps the row, removes the extreme value)
+df['monthly_charges'] = df['monthly_charges'].clip(upper=upper_bound)
+print(f"Capped outliers at {upper_bound:.2f}")
+
+# Handle missing values
+# Different strategies for different columns:
+# - Numerical: fill with median (robust to outliers)
+# - Categorical: fill with mode (most common value) or "Unknown"
+print(f"\nFilling missing values...")
+df['monthly_charges'] = df['monthly_charges'].fillna(df['monthly_charges'].median())
+df['satisfaction_score'] = df['satisfaction_score'].fillna(df['satisfaction_score'].median())
+
+# For payment_method, add a new category "Unknown" — sometimes missingness is informative!
+df['payment_method'] = df['payment_method'].cat.add_categories('Unknown').fillna('Unknown')
+print(f"Missing values remaining: {df.isnull().sum().sum()}")
