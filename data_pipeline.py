@@ -17,3 +17,37 @@ t0 = time.perf_counter()
 df_naive = pd.read_csv(DATA_PATH, low_memory=False)
 naive_memory = df_naive.memory_usage(deep=True).sum() / 1_000_000
 print(f"\n[Naive load]    Time: {time.perf_counter()-t0:.2f}s  |  Memory: {naive_memory:.1f} MB")
+
+# Optimized the load by specifying dtypes and parsing dates upfront.
+
+dtypes = {
+    'customer_id': 'int32',
+    'age': 'int8',                  # ages 0-127 fit in int8
+    'tenure_months': 'int8',
+    'monthly_charges': 'float32',
+    'total_charges': 'float32',
+    'contract_type': 'category',    # categories are MUCH smaller than strings
+    'payment_method': 'category',
+    'internet_service': 'category',
+    'num_support_calls': 'int8',
+    'satisfaction_score': 'float32',
+    'churned': 'int8',
+}
+
+t0 = time.time()
+df = pd.read_csv(
+    DATA_PATH,
+    dtype=dtypes,
+    parse_dates=['signup_date'],   # convert dates while loading
+)
+optimized_memory = df.memory_usage(deep=True).sum() / 1_000_000
+print(f"[Optimized load] Time: {time.time()-t0:.2f}s  |  Memory: {optimized_memory:.1f} MB")
+print(f"\nMemory saved: {(1 - optimized_memory/naive_memory)*100:.0f}%")
+print("(Imagine this on a 50 GB file — could mean fitting in RAM vs not!)")
+
+# Chunked loading so that we can process files too big to fit in memory
+print("\n[Chunked loading demo]")
+total_rows = 0
+for chunk in pd.read_csv(DATA_PATH, dtype=dtypes, chunksize=10_000):
+    total_rows += len(chunk)     
+print(f"Processed {total_rows:,} rows in chunks without loading all at once")
