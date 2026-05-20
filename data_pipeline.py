@@ -146,3 +146,30 @@ df['high_support_user'] = (df['num_support_calls'] > 4).astype('int8')
 print(f"\nNew columns added. Total columns now: {len(df.columns)}")
 print(f"Sample of new features:")
 print(df[['tenure_group', 'avg_charge_per_tenure', 'signup_year', 'high_support_user']].head())
+
+# STEP 5 is to split the data into TRAIN/VAL/TEST sets to evaluate model performance on unseen data and prevent overfitting.
+print("\n" + "=" * 65)
+print("STEP 5: TRAIN/VALIDATION/TEST SPLIT")
+print("=" * 65)
+
+from sklearn.model_selection import train_test_split
+
+# Drop the ID column, never feed unique IDs to a model
+X = df.drop(columns=['customer_id', 'churned', 'signup_date'])
+y = df['churned']
+
+# First split: separate test set (20%)
+X_temp, X_test, y_temp, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42
+)
+# Stratify=y preserves the churn ratio in both sets  important for imbalanced data
+# Second split: train (60%) vs validation (20% of original)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_temp, y_temp, test_size=0.25, stratify=y_temp, random_state=42
+)
+
+print(f"\nTrain:      {len(X_train):,} rows ({len(X_train)/len(X):.0%})")
+print(f"Validation: {len(X_val):,} rows ({len(X_val)/len(X):.0%})")
+print(f"Test:       {len(X_test):,} rows ({len(X_test)/len(X):.0%})")
+print(f"\nChurn rate in each set (should be ~equal):")
+print(f"  Train: {y_train.mean():.3f}  |  Val: {y_val.mean():.3f}  |  Test: {y_test.mean():.3f}")
